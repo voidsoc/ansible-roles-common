@@ -9,7 +9,7 @@
   template:
     src: mactab
     dest: /etc/mactab
-  when: networking
+  when: networking is defined
   tags: configure
 
 - name: generate /etc/hosts
@@ -46,14 +46,14 @@
 
 - name: ifupdown configuration
   include_tasks: ifupdown.yml
-  when: linux_networking_method == "ifupdown" and networking
+  when: linux_networking_method == "ifupdown" and networking is defined
   tags:
   - configure
   - install
 
 - name: netplan configuration
   include_tasks: netplan.yml
-  when: linux_networking_method == "netplan" and networking
+  when: linux_networking_method == "netplan" and networking is defined
   tags:
   - configure
   - install
