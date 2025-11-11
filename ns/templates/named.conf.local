@@ -8,6 +8,17 @@ zone "{{ zone }}" {
 };
 {% endfor %}
 
+{% for zone in ns_forward_zones | default([]) %}
+zone "{{ zone }}" {
+  type forward;
+  forward only;
+  forwarders {
+    {% for upstream in ns_upstream %}
+    {{ upstream }};
+    {% endfor %}
+  };
+};
+{% endfor %}
 statistics-channels {
         inet 127.0.0.1 port 8653 allow { 127.0.0.1; };
 };

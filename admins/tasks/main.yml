@@ -59,7 +59,7 @@
     path: "/home/{{ item }}/.ssh/authorized_keys"
   with_items: "{{ users + jump_users }}"
 
-- name: "fancy .profile for user {{ item }}"
+- name: fancy .profile
   template:
     src: dotprofile
     dest: "{{ '~' + item | expanduser }}/.profile"

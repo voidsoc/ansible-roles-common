@@ -4,25 +4,49 @@
 # Template: fw.sh
 #
 
-{%- macro normalize_addrs(rule, attr, ip_ver=4) -%}
+{%- macro lookup_object(name, ip_ver) -%}
 {% set firewallx_objects = firewall_objects if ip_ver == 4 else firewall6_objects %}
+{% if name in firewallx_objects %}
+{# make sure object is array of names or addresses #}
+{% set obj = firewallx_objects[name] %}
+{% set entries = obj if obj is iterable and obj is not string else[obj] %}
 {% set results = [] %}
-{% if attr in rule %}
-{% set attrs = ( rule[attr].replace(' ','').split(',') if rule[attr] is string else rule[attr] ) %}
-{% for name_or_addr in attrs %}
-{% if name_or_addr in firewallx_objects %}
-{% set xaddr = firewallx_objects[name_or_addr] %}
-{% do results.append(xaddr.replace(' ','').split(',') if xaddr is string else xaddr) %}
+{% for name_or_addr in entries %}
+{% set trimmed = name_or_addr.strip() %}
+{% if trimmed in firewallx_objects %}
+{{ lookup_object(trimmed, ip_ver) }}
 {% else %}
-{% if name_or_addr | ansible.utils.ipaddr %}
-{% do results.append([name_or_addr]) %}
+{% if trimmed | ansible.utils.ipaddr or trimmed.startswith('!') %}
+{{ trimmed }}
 {% else %}
-{{ xxx_invalid|mandatory("Object not found and direct DNS referencing not allowed: "+name_or_addr+" ip_ver="+ip_ver|string+" rule="+(rule|to_json)) }}
+{{ xxx_invalid|mandatory("Nested object not found and direct DNS referencing not allowed: "+trimmed) }}
 {% endif %}
 {% endif %}
 {% endfor %}
+{% else %}
+{{ xxx_invalid|mandatory("Referenced invalid object and direct DNS referencing not allowed: "+name) }}
 {% endif %}
-{{ results | sort | flatten | join(",") }}
+{%- endmacro -%}
+
+{%- macro normalize_addrs(rule, attr, ip_ver=4) -%}
+{% set firewallx_objects = firewall_objects if ip_ver == 4 else firewall6_objects %}
+{% if attr in rule %}
+{% set attrs = ( rule[attr].replace(' ','').split(',') if rule[attr] is string else rule[attr] ) %}
+{% for name_or_addr in attrs %}
+{% set trimmed = name_or_addr.strip() %}
+{% if trimmed in firewallx_objects %}
+{{ lookup_object(trimmed, ip_ver) }}
+{% else %}
+{% if trimmed | ansible.utils.ipaddr or trimmed.startswith('!') %}
+{{ trimmed }}
+{% else %}
+{{ xxx_invalid|mandatory("Object not found and direct DNS referencing not allowed: "+name_or_addr+" rule="+(rule|to_json)) }}
+{% endif %}
+{% endif %}
+{% endfor %}
+{% else %}
+ANY
+{% endif %}
 {%- endmacro -%}
 
 {%- macro normalize_ports(rule, proto) -%}
@@ -33,35 +57,63 @@
 {%- endif -%}
 {%- endmacro -%}
 
+{%- macro format_addr(match,addr) -%}
+  {%- set trimmed = addr.strip() %}
+  {%- if trimmed == "ANY" %}
+  {%- elif trimmed.startswith('!') %}
+    {%- set addrs = trimmed[1:].split() %}
+    {%- for addr in addrs %}
+ ! {{ match }} {{ addr }} 
+    {%- endfor %}
+  {%- else %}
+ {{ match }} {{ trimmed }}
+  {%- endif %}
+{%- endmacro -%}
+
+{%- macro format_proto(proto,param) -%}
+{% set proto = proto.strip() %}
+{% set param = param.strip() %}
+{%- if proto != "ANY" %}
+ -p {{ proto }}
+{%- if param != "ANY" %}
+{%- if proto in ['tcp','udp','sctp'] %}
+ --dport {{ param }}
+{%- elif proto == 'icmp' %}
+ --icmp-type {{ param }}
+{%- elif proto == 'icmp6' %}
+ --icmpv6-type {{ param }}
+{%- endif -%}
+{%- endif -%}
+{%- endif -%}
+{%- endmacro -%}
+
+
 {%- macro generate_rule(rule, chain, default_action='LOG_ACCEPT', ip_ver=4) -%}
 # {{ rule | to_json }}
-{% set src_addrs = normalize_addrs(rule, 'src', ip_ver).split(',') %}
-{% set dest_addrs = normalize_addrs(rule, 'dest', ip_ver).split(',') %}
+{% set src_addrs = normalize_addrs(rule, 'src', ip_ver).split('\n') | difference(['']) | sort %}
+{% set dest_addrs = normalize_addrs(rule, 'dest', ip_ver).split('\n') | difference(['']) | sort %}
+{# src addrs: {{ src_addrs }} #}
+{# dest addrs: {{ dest_addrs }} #}
 {% set src_list = " -m set --match-set "+rule.src_list+" src " if rule.src_list|default(False) else "" %}
-{% for src_addr in src_addrs -%}
-{%- for dest_addr in dest_addrs -%}
-{% if 'proto' in rule %}
-{% for rule_proto, rule_ports in rule.proto.items() %}
-{% set rule_ports = normalize_ports(rule, rule_proto).split(',') | default([]) | difference(['']) | sort %}
-{% set src = " -s "+src_addr if src_addr|length else "" %}
-{% set dest = " -d "+dest_addr if dest_addr|length else "" %}
+{% for src_addr in (src_addrs|sort) -%}
+{%- for dest_addr in (dest_addrs|sort) -%}
+{% set src = format_addr("-s", src_addr) %}
+{% set dest = format_addr("-d", dest_addr) %}
+{% for rule_proto, rule_ports in (rule.proto if rule.proto is defined else {"ANY": "ANY"}).items() %}
+{% set raw_ports = normalize_ports(rule, rule_proto).split(',') | default([]) | difference(['']) | sort %}
+{% set rule_ports = raw_ports if raw_ports else ['ANY'] %}
 {% for port in rule_ports %}
-$IT{{ ip_ver }} -A {{ chain }} -p {{ rule_proto }} --dport {{ port }}{{ src_list }}{{ src }}{{ dest }} -j {{ rule.rule | default(default_action) }}
+{% set proto = format_proto(rule_proto, port) %}
+$IT{{ ip_ver }} -A {{ chain }}{{ proto }}{{ src_list }}{{ src }}{{ dest }} -j {{ rule.rule | default(default_action) }}
 {% endfor %}
-{% if not rule_ports %}
-$IT{{ ip_ver }} -A {{ chain }} -p {{ rule_proto }}{{src_list}}{{ " -s "+src_addr if src_addr|length else "" }}{{ " -d "+dest_addr if dest_addr|length else "" }} -j {{ rule.rule | default(default_action) }}
-{% endif %}
 {% endfor %}
-{% else %}
-$IT{{ ip_ver }} -A {{ chain }}{{ src_list }}{{ " -s "+src_addr if src_addr|length else "" }}{{ " -d "+dest_addr if dest_addr|length else "" }} -j {{ rule.rule | default(default_action) }}
-{% endif %}
 {% endfor %}
 {% endfor %}
 {%- endmacro -%}
 
 {%- macro generate_interface_rules(firewall_iface_name, firewall_iface, ip_ver=4) -%}
-{% set allow_nets = normalize_addrs(firewall_iface, 'allow', ip_ver).split(',') | difference(['']) | sort %}
-{% set deny_nets = normalize_addrs(firewall_iface, 'deny', ip_ver).split(',') | difference(['']) | sort %}
+{% set allow_nets = normalize_addrs(firewall_iface, 'allow', ip_ver).split('\n') | difference(['','ANY']) | sort %}
+{% set deny_nets = normalize_addrs(firewall_iface, 'deny', ip_ver).split('\n') | difference(['','ANY']) | sort %}
 {% set allow_dst = '-d '+firewall_iface.allow_dst if 'allow_dst' in firewall_iface else '' %}
 {% for deny_net in deny_nets %}
   $IT{{ ip_ver }} -A CHECK_IF -i {{ firewall_iface_name }} -s {{ deny_net }} -j {{ firewall_default_rule_checkif_deny }}
@@ -451,9 +503,7 @@ $IT4 -t nat -A PREROUTING -i {{ firewall_iface_name }} -d {{ dnat.orig_to }} -j 
 ### custom firewall patches
 
 {% if firewall_final_patch is defined %}
-{% for rule in firewall_final_patch %}
-{{ rule }}
-{% endfor %}
+{{ firewall_final_patch }}
 {% endif %}
 
 
