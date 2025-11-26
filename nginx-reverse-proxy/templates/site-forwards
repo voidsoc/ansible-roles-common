@@ -23,6 +23,7 @@ server {
      ssl_certificate /etc/nginx/ssl/defaultnginx.crt;
      ssl_certificate_key /etc/nginx/ssl/defaultnginx.key;
 
+
 }
 
 {% for fwd in site_forwards %}
