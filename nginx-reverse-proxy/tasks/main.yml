@@ -30,23 +30,3 @@
     state: link
   notify: restart nginx
 
-- name: check if default certificate exist
-  stat:
-    path: /etc/nginx/ssl/defaultnginx.crt
-  register: cert_stat
-  tags: cert-defaul
-
-- name: copy default certificate for default page
-  copy:
-    src: files/nginx-default-cert/defaultnginx.crt
-    dst: /etc/nginx/ssl/defaultnginx.crt
-  when: not cert_stat.stat.exist
-  tags: cert-defaul
-
-- name: copy default key for certificat for default page
-  copy:
-    src: files/nginx-default-cert/defaultnginx.key
-    dst: /etc/nginx/ssl/defaultnginx.key
-  when: not cert_stat.stat.exist
-  notify: restart nginx
-  tags: cert-defaul

@@ -14,18 +14,6 @@ map $http_upgrade $connection_upgrade {
 
 
 # accept tls, forward downstream
-
-server {
-     listen 443 default_server;
-     listen [::]:443 default_server;
-     server_name _;
-
-     ssl_certificate /etc/nginx/ssl/defaultnginx.crt;
-     ssl_certificate_key /etc/nginx/ssl/defaultnginx.key;
-
-
-}
-
 {% for fwd in site_forwards %}
 
 server {
