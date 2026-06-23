@@ -18,7 +18,14 @@ get_port() {
 }
 
 list_instances() {
-    docker ps --format '{{json .}}' | jq -r 'select(.Image | test("fluent-bit")) | .Names'
+	CACHE_FILE="/var/run/zabbix/instances.json"
+
+	[ ! -f "$CACHE_FILE" ] || [ "$(find "$CACHE_FILE" -newermt '-300 seconds' 2>/dev/null)" = "" ] \
+		&& docker ps --format '{{.Image}} {{.Names}}' | grep fluent-bit | awk '{print $2}' > "$CACHE_FILE"
+
+	[ -f "$CACHE_FILE" ] || fail "failed to list instances"
+
+	cat "$CACHE_FILE"
 }
 
 discover_metrics() {
