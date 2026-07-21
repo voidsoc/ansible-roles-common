@@ -6,13 +6,13 @@ fail() {
 }
 
 usage() {
-    fail "usage: $0 (discover-instances|discover-inputs|discover-outputs|discover-filters|(version|uptime|instance-metrics) [instance])"
+    fail "usage: $0 (discover-instances|discover-inputs|discover-outputs|discover-filters|(instance-version|instance-uptime|instance-metrics) [instance])"
     exit 1
 }
 
 get_port() {
-    PORT=$( docker port "$1" 8000/tcp | cut -d ':' -f 2 )
-    [ -z "$PORT" ] && fail "invalid http_port"
+    PORT=$( docker port "$1" 8000/tcp 2>/dev/null | cut -d ':' -f 2 )
+    [ -z "$PORT" ] && fail "failed to get instance http_port"
 
     echo "$PORT"
 }

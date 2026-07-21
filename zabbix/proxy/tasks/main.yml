@@ -1,7 +1,7 @@
 - name:
   debug: var=ansible_distribution_major_version
 
-- name: install zabbix-proxy and python3-mysqldb
+- name: install zabbix-proxy
   package:
     name:
       - zabbix-proxy-pgsql
