@@ -35,11 +35,21 @@
 - include_tasks: fix-certs-generator.yml
 
 - name: generate certificates
-  shell: 
-    docker compose -f generate-indexer-certs.yml run --rm generator && sleep 10
+  shell:
+    docker compose -f generate-indexer-certs.yml run --rm generator
   args:
     chdir: /opt/wazuh-docker/single-node
-  when: not wazuh_certificates_are_present 
+  when: not wazuh_certificates_are_present
+  register: cert_generation
+
+# Wait for the cert-generator container to finish writing files to disk
+# before proceeding; the former bare 'sleep 10' gave no readiness signal.
+- name: wait for root-ca cert to appear after generation
+  ansible.builtin.wait_for:
+    path: /opt/wazuh-docker/single-node/config/wazuh_indexer_ssl_certs/root-ca.pem
+    state: present
+    timeout: 60
+  when: not wazuh_certificates_are_present
 
 ## install wazuh
 - name: start wazuh
