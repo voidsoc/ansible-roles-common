@@ -53,10 +53,28 @@
 
 ## install wazuh
 - name: start wazuh
-  shell: 
-    docker compose up -d && sleep 180
+  shell:
+    docker compose up -d
   args:
     chdir: /opt/wazuh-docker/single-node
+  when: not wazuh_indexer_is_running
+
+# Poll the OpenSearch API instead of sleeping a fixed 180s.
+# Mirrors the readiness pattern already used in soitron/opensearch-roles.
+# 30 retries × 10 s delay = up to 300s, generous enough for cold starts.
+- name: wait for wazuh indexer to become ready
+  ansible.builtin.uri:
+    url: "{{ opensearch_url | default('https://localhost:9200') }}/_cluster/health"
+    client_cert: "{{ opensearch_admin_cert | default('/opt/wazuh-docker/single-node/config/wazuh_indexer_ssl_certs/admin.pem') }}"
+    client_key: "{{ opensearch_admin_key | default('/opt/wazuh-docker/single-node/config/wazuh_indexer_ssl_certs/admin-key.pem') }}"
+    validate_certs: false
+    use_proxy: false
+    status_code: 200
+  become: true
+  register: wazuh_indexer_health
+  until: wazuh_indexer_health.status | default(0) == 200
+  retries: 30
+  delay: 10
   when: not wazuh_indexer_is_running
 
 ## re-check facts and make sure wazuh is running
