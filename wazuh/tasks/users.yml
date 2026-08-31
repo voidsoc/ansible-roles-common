@@ -1,5 +1,6 @@
 ---
 - name: validate admin password
+  tags: wazuh-users
   ansible.builtin.assert:
     that:
       - not (wazuh_admin_password is match(".*;.*"))
@@ -7,12 +8,14 @@
     fail_msg: "wazuh_admin_password must not contain chars from [;&]"
 
 - name: generate docker-compose override
+  tags: wazuh-users
   template:
     src: docker-compose.override.yml
     dest: /opt/wazuh-docker/single-node/docker-compose.override.yml
   notify: restart entire wazuh
 
 - name: generate internal_users.yml
+  tags: wazuh-users
   template:
     src: internal_users.yml
     dest: /opt/wazuh-docker/single-node/config/wazuh_indexer/internal_users.yml
@@ -23,4 +26,3 @@
     src: dashboard.yml
     dest: /opt/wazuh-docker/single-node/config/wazuh_dashboard/wazuh.yml
   notify: restart wazuh dashboard
-
