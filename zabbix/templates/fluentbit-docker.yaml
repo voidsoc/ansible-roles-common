@@ -1,4 +1,4 @@
-fluentbit:
+fluentbit-docker:
   template: "fluentbit by Zabbix agent"
   params: "zabbix-fluentbit-docker/fluentbit.conf"
   scripts:

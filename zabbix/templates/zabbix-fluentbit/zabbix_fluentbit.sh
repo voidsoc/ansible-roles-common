@@ -64,6 +64,11 @@ discover_metrics_all() {
 [ $# -lt 1 ] && usage
 
 case "$1" in
+count-instances)
+    [ $# -ne 1 ] && usage
+    list_instances | wc -l
+    ;;
+
 discover-instances)
     [ $# -ne 1 ] && usage
     list_instances | jq -R -s 'split("\n") | map(select(length > 0)) | {data: map({"{#INSTANCE}": .})}'
