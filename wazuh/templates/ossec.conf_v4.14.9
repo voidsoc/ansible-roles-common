@@ -10,19 +10,19 @@
     <email_to>recipient@example.wazuh.com</email_to>
     <email_maxperhour>12</email_maxperhour>
     <email_log_source>alerts.log</email_log_source>
-    <agents_disconnection_time>10m</agents_disconnection_time>
+    <agents_disconnection_time>15m</agents_disconnection_time>
     <agents_disconnection_alert_time>0</agents_disconnection_alert_time>
   </global>
+
+  <!-- Choose between plain or json format (or both) for internal logs -->
+  <logging>
+    <log_format>plain</log_format>
+  </logging>
 
   <alerts>
     <log_alert_level>3</log_alert_level>
     <email_alert_level>12</email_alert_level>
   </alerts>
-
-  <!-- Choose between "plain", "json", or "plain,json" for the format of internal logs -->
-  <logging>
-    <log_format>plain</log_format>
-  </logging>
 
   <remote>
     <connection>secure</connection>
@@ -45,11 +45,27 @@
     <!-- Frequency that rootcheck is executed - every 12 hours -->
     <frequency>43200</frequency>
 
-    <rootkit_files>etc/rootcheck/rootkit_files.txt</rootkit_files>
-    <rootkit_trojans>etc/rootcheck/rootkit_trojans.txt</rootkit_trojans>
+    <rootkit_files>/var/ossec/etc/shared/default/rootkit_files.txt</rootkit_files>
+    <rootkit_trojans>/var/ossec/etc/shared/default/rootkit_trojans.txt</rootkit_trojans>
+
+    <system_audit>/var/ossec/etc/shared/default/system_audit_rcl.txt</system_audit>
+    <system_audit>/var/ossec/etc/shared/default/system_audit_ssh.txt</system_audit>
+    <system_audit>/var/ossec/etc/shared/default/cis_debian_linux_rcl.txt</system_audit>
 
     <skip_nfs>yes</skip_nfs>
   </rootcheck>
+
+  <wodle name="open-scap">
+    <disabled>yes</disabled>
+    <timeout>1800</timeout>
+    <interval>1d</interval>
+
+    <scan-on-start>yes</scan-on-start>
+    <content type="xccdf" path="ssg-debian-8-ds.xml">
+      <profile>xccdf_org.ssgproject.content_profile_common</profile>
+    </content>
+    <content type="oval" path="cve-debian-oval.xml"/>
+  </wodle>
 
   <wodle name="cis-cat">
     <disabled>yes</disabled>
@@ -61,15 +77,6 @@
     <ciscat_path>wodles/ciscat</ciscat_path>
   </wodle>
 
-  <!-- Osquery integration -->
-  <wodle name="osquery">
-    <disabled>yes</disabled>
-    <run_daemon>yes</run_daemon>
-    <log_path>/var/log/osquery/osqueryd.results.log</log_path>
-    <config_path>/etc/osquery/osquery.conf</config_path>
-    <add_labels>yes</add_labels>
-  </wodle>
-
   <!-- System inventory -->
   <wodle name="syscollector">
     <disabled>no</disabled>
@@ -79,7 +86,7 @@
     <os>yes</os>
     <network>yes</network>
     <packages>yes</packages>
-    <ports all="no">yes</ports>
+    <ports all="yes">yes</ports>
     <processes>yes</processes>
 
     <!-- Database synchronization settings -->
@@ -147,12 +154,18 @@
     <ignore>/etc/cups/certs</ignore>
     <ignore>/etc/dumpdates</ignore>
     <ignore>/etc/svc/volatile</ignore>
+    <ignore>/sys/kernel/security</ignore>
+    <ignore>/sys/kernel/debug</ignore>
 
     <!-- File types to ignore -->
     <ignore type="sregex">.log$|.swp$</ignore>
 
     <!-- Check the file, but never compute the diff -->
-    <nodiff>/etc/ssl/private.key</nodiff>
+    <nodiff type="sregex">^/etc/ssl/private/|^/etc/pki/tls/private/</nodiff>
+    <nodiff>/etc/shadow</nodiff>
+    <nodiff>/etc/shadow-</nodiff>
+    <nodiff>/etc/gshadow</nodiff>
+    <nodiff>/etc/gshadow-</nodiff>
 
     <skip_nfs>yes</skip_nfs>
     <skip_dev>yes</skip_dev>
@@ -229,6 +242,26 @@
 
   <!-- Log analysis -->
   <localfile>
+    <log_format>syslog</log_format>
+    <location>/var/ossec/logs/active-responses.log</location>
+  </localfile>
+
+  <localfile>
+    <log_format>syslog</log_format>
+    <location>/var/log/messages</location>
+  </localfile>
+
+  <localfile>
+    <log_format>syslog</log_format>
+    <location>/var/log/auth.log</location>
+  </localfile>
+
+  <localfile>
+    <log_format>syslog</log_format>
+    <location>/var/log/syslog</location>
+  </localfile>
+
+  <localfile>
     <log_format>command</log_format>
     <command>df -P</command>
     <frequency>360</frequency>
@@ -255,6 +288,9 @@
     <list>etc/lists/audit-keys</list>
     <list>etc/lists/amazon/aws-eventnames</list>
     <list>etc/lists/security-eventchannel</list>
+    <list>etc/lists/malicious-ioc/malicious-ip</list>
+    <list>etc/lists/malicious-ioc/malicious-domains</list>
+    <list>etc/lists/malicious-ioc/malware-hashes</list>
 
     <!-- User-defined ruleset -->
     <decoder_dir>etc/{{ wazuh_test_dir | default("") }}decoders</decoder_dir>
@@ -268,7 +304,10 @@
     <session_timeout>15m</session_timeout>
   </rule_test>
 
-  <!-- Configuration for wazuh-authd -->
+  <!-- Configuration for wazuh-authd
+       To enable this service, run:
+       wazuh-control enable auth
+  -->
   <auth>
     <disabled>no</disabled>
     <port>1515</port>
@@ -278,8 +317,8 @@
     <ciphers>HIGH:!ADH:!EXP:!MD5:!RC4:!3DES:!CAMELLIA:@STRENGTH</ciphers>
     <!-- <ssl_agent_ca></ssl_agent_ca> -->
     <ssl_verify_host>no</ssl_verify_host>
-    <ssl_manager_cert>etc/sslmanager.cert</ssl_manager_cert>
-    <ssl_manager_key>etc/sslmanager.key</ssl_manager_key>
+    <ssl_manager_cert>/var/ossec/etc/sslmanager.cert</ssl_manager_cert>
+    <ssl_manager_key>/var/ossec/etc/sslmanager.key</ssl_manager_key>
     <ssl_auto_negotiate>no</ssl_auto_negotiate>
   </auth>
 
