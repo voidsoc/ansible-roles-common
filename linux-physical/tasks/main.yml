@@ -1,13 +1,14 @@
+- name: set distro-specific variables
+  include_vars: '{{ item }}'
+  with_first_found:
+    - "{{ ansible_distribution }}-{{ ansible_distribution_major_version }}.yml"
+    - default.yml
+
 - import_tasks: smartmontools.yml
 - import_tasks: mdadm.yml
-- import_tasks: sensors.yml
 
 - package:
-    name:
-      - hwloc 
-      - linux-tools-common 
-      - linux-tools-generic
-      - ipmitool
+    name: "{{ packages }}"
     state: present
 
 - name: disable fwupd

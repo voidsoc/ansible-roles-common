@@ -1,0 +1,5 @@
+
+packages:
+  - linux-tools-common 
+  - linux-tools-generic
+  - ipmitool
