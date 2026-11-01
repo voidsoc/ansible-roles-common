@@ -1,11 +1,5 @@
 ---
 
-- name: remove invalid users
-  user:
-    name: "{{ item }}"
-    state: absent
-  with_items: "{{ users_remove }}"
-
 - name: install dependencies (sudo)
   package:
     name: sudo
@@ -72,3 +66,9 @@
 - name: setup initram SSH
   include_tasks: initram_ssh.yml
   when: initram_ssh_enable | bool
+
+- name: remove invalid users
+  user:
+    name: "{{ item }}"
+    state: absent
+  with_items: "{{ users_remove | difference(users + jump_users) }}"
