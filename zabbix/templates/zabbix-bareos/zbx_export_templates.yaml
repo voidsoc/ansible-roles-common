@@ -1,0 +1,138 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: 7df96b18c230490a9a0a9e2307226338
+      name: Templates
+  templates:
+    - uuid: e534d540898a498fa311dcca7b2fdbae
+      template: 'bareos by Zabbix agent'
+      name: 'bareos by Zabbix agent'
+      groups:
+        - name: Templates
+      items:
+        - uuid: b68cebf632274b18840f3adcbfeb396e
+          name: 'Bareos jobs'
+          key: bareos.jobs
+          delay: 1h
+          history: 7d
+          value_type: TEXT
+          trends: '0'
+          triggers:
+            - uuid: ce80d4d7652f45d2a43920c477d81cfb
+              expression: 'nodata(/bareos by Zabbix agent/bareos.jobs,3h)=1'
+              name: 'Bareos: no backup jobs received'
+      discovery_rules:
+        - uuid: bf1ccb1f94cb41b0ba05f08ce235f25e
+          name: 'Discover bareos clients'
+          key: bareos.discover-clients
+          delay: 1h
+          lifetime: 90d
+          item_prototypes:
+            - uuid: 413c4746bbeb4f3a9f9ce3b4337bc5c1
+              name: 'Latest bareos backup: {#CLIENT} bytes'
+              type: DEPENDENT
+              key: 'bareos.job-bytes[{#CLIENT}]'
+              delay: '0'
+              units: B
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$[''{#CLIENT}''].bytes'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: '0'
+              master_item:
+                key: bareos.jobs
+            - uuid: 1c7fd32a75034d118e8068449efd6616
+              name: 'Latest bareos backup: {#CLIENT} duration'
+              type: DEPENDENT
+              key: 'bareos.job-duration[{#CLIENT}]'
+              delay: '0'
+              units: seconds
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$[''{#CLIENT}''].duration'
+              master_item:
+                key: bareos.jobs
+              trigger_prototypes:
+                - uuid: e1d3d26ce205456b8a1403aa51412341
+                  expression: 'max(/bareos by Zabbix agent/bareos.job-duration[{#CLIENT}],7d)>3600'
+                  name: 'Bareos: slow backup job for {#CLIENT}'
+                  priority: WARNING
+            - uuid: 82422a281aaa4b8e996d189ef768f690
+              name: 'Latest bareos backup: {#CLIENT} files'
+              type: DEPENDENT
+              key: 'bareos.job-files[{#CLIENT}]'
+              delay: '0'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$[''{#CLIENT}''].files'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: '0'
+              master_item:
+                key: bareos.jobs
+            - uuid: a489aaac6b0543f6a98bb5072046ad82
+              name: 'Latest bareos backup: {#CLIENT} jobid'
+              type: DEPENDENT
+              key: 'bareos.job-jobid[{#CLIENT}]'
+              delay: '0'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$[''{#CLIENT}''].jobid'
+              master_item:
+                key: bareos.jobs
+            - uuid: 2244a1ed4e9349afbcbd853961c91224
+              name: 'Latest bareos backup: {#CLIENT} level'
+              type: DEPENDENT
+              key: 'bareos.job-level[{#CLIENT}]'
+              delay: '0'
+              value_type: TEXT
+              trends: '0'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$[''{#CLIENT}''].level'
+              master_item:
+                key: bareos.jobs
+            - uuid: dd9da124973b4be9b61fa5efc1e2eff1
+              name: 'Latest bareos backup: {#CLIENT} starttime'
+              type: DEPENDENT
+              key: 'bareos.job-starttime[{#CLIENT}]'
+              delay: '0'
+              value_type: TEXT
+              trends: '0'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$[''{#CLIENT}''].starttime'
+              master_item:
+                key: bareos.jobs
+            - uuid: 00aaf414b3db404eb4fe5ac4443649e2
+              name: 'Latest bareos backup: {#CLIENT} status'
+              type: DEPENDENT
+              key: 'bareos.job-status[{#CLIENT}]'
+              delay: '0'
+              value_type: TEXT
+              trends: '0'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$[''{#CLIENT}''].status'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: invalid
+              master_item:
+                key: bareos.jobs
+              trigger_prototypes:
+                - uuid: c629ccbd0e574e5c97d5750ce7397d45
+                  expression: |
+                    last(/bareos by Zabbix agent/bareos.job-status[{#CLIENT}])<>"R"
+                    and
+                    last(/bareos by Zabbix agent/bareos.job-status[{#CLIENT}])<>"T"
+                  name: 'Bareos: Latest backup failed on {#CLIENT}'
+                  priority: HIGH
+                - uuid: a63270dbf2154131b5f0bcea14558465
+                  expression: 'nodata(/bareos by Zabbix agent/bareos.job-status[{#CLIENT}],48h)=1'
+                  name: 'Bareos: missing backup job status for {#CLIENT}'
+                  priority: AVERAGE
