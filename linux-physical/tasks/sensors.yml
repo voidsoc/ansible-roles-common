@@ -1,6 +1,0 @@
-- name: install extra packages
-  package:
-    name: lm-sensors
-    state: present
-
-# TODO:

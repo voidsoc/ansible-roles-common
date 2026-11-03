@@ -1,0 +1,6 @@
+packages:
+  - linux-tools-common 
+  - linux-tools-generic
+  - ipmitool
+  - hwloc
+  - lm-sensors

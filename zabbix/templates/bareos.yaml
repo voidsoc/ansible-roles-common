@@ -1,0 +1,6 @@
+bareos:
+  template: "bareos by Zabbix agent"
+  sudoers: "zabbix-bareos/sudoers"
+  params: "zabbix-bareos/bareos.conf"
+  scripts:
+    - "zabbix-bareos/zabbix_bareos.sh"
