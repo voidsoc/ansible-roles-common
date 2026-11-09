@@ -4,10 +4,10 @@
     <alerts_log>yes</alerts_log>
     <logall>no</logall>
     <logall_json>no</logall_json>
-    <email_notification>no</email_notification>
-    <smtp_server>smtp.example.wazuh.com</smtp_server>
-    <email_from>wazuh@example.wazuh.com</email_from>
-    <email_to>recipient@example.wazuh.com</email_to>
+    <email_notification>{{ wazuh_email_notification | default("no") }}</email_notification>
+    <smtp_server>{{ wazuh_smtp_server | default("smtp.example.wazuh.co") }}</smtp_server>
+    <email_from>{{ wazuh_email_from | default("wazuh@example.wazuh.com") }}</email_from>
+    <email_to>{{ wazuh_email_recipient | default("recipient@example.wazuh.com") }}</email_to>
     <email_maxperhour>12</email_maxperhour>
     <email_log_source>alerts.log</email_log_source>
     <agents_disconnection_time>15m</agents_disconnection_time>
