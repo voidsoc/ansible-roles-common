@@ -2,3 +2,4 @@ letsencrypt_pre_hook: ""
 letsencrypt_post_hook: ""
 letsencrypt_http_port: 80
 letsencrypt_admin_email: "{{ admin_email }}"
+acme_server: "https://acme-v02.api.letsencrypt.org/directory"
