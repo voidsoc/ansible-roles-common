@@ -1,23 +1,23 @@
 services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      #- ./root-ca.crt:/etc/caddy/root-ca.crt:ro
+      - caddy-data:/data
+      - caddy-config:/config
   redis:
     restart: unless-stopped
   redis-cache:
     restart: unless-stopped
   postgres:
     restart: unless-stopped
-  nginx-proxy:
-    image: jwilder/nginx-proxy
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/tmp/docker.sock:ro
-      - /opt/nginx-proxy-ssl/:/etc/nginx/certs:ro
   netbox-worker:
     restart: unless-stopped
-  #netbox-housekeeping:
-  #  restart: unless-stopped
   netbox:
     restart: unless-stopped
     #XXX: can be removed after initial db import
@@ -44,5 +44,7 @@ services:
       AUTH_LDAP_IS_SUPERUSER_DN: "cn={{ netbox_ldap_admins_cn | default('AppNetboxAdmins') }},ou=groups,{{ netbox_ldap_base }}"
 {% endif %}
       CHANGELOG_RETENTION: 1825
-      VIRTUAL_HOST: "{{ inventory_hostname }}"
-      VIRTUAL_PORT: 8080
+
+volumes:
+  caddy-data:
+  caddy-config:

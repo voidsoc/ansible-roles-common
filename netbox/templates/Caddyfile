@@ -1,0 +1,8 @@
+{
+    acme_ca {{ acme_server | default('https://acme-v02.api.letsencrypt.org/directory') }}
+    #acme_ca_root /etc/caddy/root-ca.crt
+}
+
+inventory_hostname {
+    reverse_proxy netbox:8080
+}
