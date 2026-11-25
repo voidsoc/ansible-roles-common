@@ -15,12 +15,16 @@ virtual_image: "{{ virtual_dir }}/images/noble-server-cloudimg-amd64.img"
 # preseed config and default user
 virtual_preseed_country: "SK"
 virtual_preseed_timezone: "Etc/UTC"
-virtual_setup_user: "setup"
-virtual_setup_password: "{{ 'changeme' | password_hash('sha512') }}"
+virtual_preseed_users:
+  setup:
+    password: "{{ 'changeme' | password_hash('sha512') }}"
+
+#uncomment if root password should be set during preseed-ng
+#virtual_root_password: "rootPasswordHash"
 
 # each virtualized host should have "virtual" variable defined
 # take these as an example and not reasonable defaults
-virtual: 
+virtual:
   name: "{{ inventory_hostname }}"
   #fqdn: "{{ inventory_hostname }}"   # used by cluster-tools
   #ram: 1024        # in MBs
